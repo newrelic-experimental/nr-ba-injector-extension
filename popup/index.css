@@ -1,0 +1,44 @@
+body{
+    width: auto;
+    min-width: 203px;
+    height: 400px;
+    overflow-y: scroll;
+}
+
+#btn, .section > select {
+    margin-right: 10px;
+}
+
+.section > input{
+    margin: 0 0 10px;
+}
+
+.section{
+    padding: 10px 25px;
+}
+
+#helper-text{
+    color: #017c86;
+    font-size: large;
+    font-weight: bold;
+    text-align: center;
+}
+
+label {
+    color: #017c86;
+}
+
+select{
+    width: 100%;
+}
+
+#log{
+    font-variant: all-petite-caps;
+    white-space: pre;
+    overflow-y: scroll;
+    font-size: large;
+}
+
+.hidden {
+    display: none;
+}

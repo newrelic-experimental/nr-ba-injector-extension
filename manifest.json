@@ -1,0 +1,33 @@
+{
+  "manifest_version": 2,
+  "name": "NR Injector",
+  "version": "0.0.1",
+  "description": "Inject NR into page",
+  "author": "Jordan Porter",
+  "permissions": ["<all_urls>", "webRequest"],
+  "browser_action": {
+    "default_title": "NR Injector",
+    "default_popup": "popup/index.html",
+    "default_icon": "assets/icon_32.png"
+  },
+  "icons": {"16": "assets/icon_16.png", "32": "assets/icon_32.png"},
+  "content_security_policy": "object-src 'self'; script-src 'self' sha256-rprxG7jnStB2wB4iccCbbwNnefU5XeNeNtbNWF0Fb4s= https://js-agent.newrelic.com https://staging-bam-cell.nr-data.net;",
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["scripts/inject.js"],
+      "run_at":"document_start"
+    } 
+  ],
+  "web_accessible_resources": [
+      "scripts/*.js",
+      "scripts/loaders/*.js",
+      "https://js-agent.newrelic.com/*"
+  ],
+  "background": {
+    "scripts": ["background/index.js"],
+    "persistent": true
+  }
+}
+
+
