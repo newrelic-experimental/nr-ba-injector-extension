@@ -57,13 +57,20 @@ window.addEventListener('load', async () => {
     setLabel(await canTrack());
 
     setInputValue("#accountID", await getLocalStorage('accountID'))
+    setInputValue("#applicationID", await getLocalStorage('applicationID'))
     setInputValue("#agentID", await getLocalStorage('agentID'))
     setInputValue("#licenseKey", await getLocalStorage('licenseKey'))
-    setInputValue("#applicationID", await getLocalStorage('applicationID'))
-    setInputValue("#nrLoaderType", (await getLocalStorage('nrLoaderType')) || 'SPA')
+    setInputValue("#licenseKey", await getLocalStorage('licenseKey'))
+    setInputValue("#agent", await getLocalStorage('agent'))
+    const nrLoaderType = await getLocalStorage('nrLoaderType') || 'SPA'
+    setInputValue("#nrLoaderType", nrLoaderType)
+    const customAgentUrl = await getLocalStorage('customAgentUrl') || null
+    setInputValue("#customAgentUrl", customAgentUrl)
 
     // TODO -- get other versions of agent, link to select elem
 
+    document.querySelector("#customAgentUrl").hidden = nrLoaderType.toLowerCase() !== 'custom'
+    
     chrome.runtime.sendMessage({type: messageTypes.request}, data => setLog(data))
 
     document.querySelector("#logBtn").addEventListener("click", () => {
@@ -115,6 +122,8 @@ window.addEventListener('load', async () => {
             const {id, value} = e.target;
             setLocalStorage({key: id, val: value})
             document.querySelector("#helper-text").innerText = "Reload any running pages to see changes"
+            console.log("id, val", id, value)
+            if (id === 'nrLoaderType') document.querySelector("#customAgentUrl").hidden = value.toLowerCase() !== 'custom'
         })
     })
 })

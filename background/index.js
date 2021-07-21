@@ -20,6 +20,15 @@ const setLocalStorage = (key, val) => {
     window.localStorage.setItem(key, val);
 }
 
+// chrome.webRequest.onBeforeRequest.addListener(
+//     (details) => { 
+//         console.log(details);
+//         return {cancel: true}; 
+//     },
+//     {urls: ["*://*.nr-data.net/*"]},
+//     ["blocking"]
+//   );
+
 chrome.runtime.onMessage.addListener(({type, data}, sender, sendResponse) => {
     switch(type){
         case messageTypes.clearLog:

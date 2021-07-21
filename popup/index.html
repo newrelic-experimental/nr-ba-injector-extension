@@ -16,11 +16,14 @@
             <label for="agentID">Agent ID</label><input type="text" id="agentID" placeholder="Agent ID">
             <label for="applicationID">Application ID</label><input type="text" id="applicationID" placeholder="Application ID">
             <label for="accountID">License Key</label><input type="text" id="licenseKey" placeholder="License Key">
+            <label for="agent">Agent Version</label><input type="text" id="agent" placeholder="Agent Version Number">
+            <label for="customAgentUrl">Custom URL</label><input type="text" id="customAgentUrl" placeholder="https://js-agent.newrelic.com/dev/nr-loader-spa.min.js" hidden required>
             <label for="nrLoaderType">Agent Type</label><br />
             <select id="nrLoaderType">
-                <option selected>Lite</option>
-                <option selected>Pro</option>
+                <option>Lite</option>
+                <option>Pro</option>
                 <option selected>SPA</option>
+                <option>Custom</option>
             </select>
         </div>
         <div class="section">
