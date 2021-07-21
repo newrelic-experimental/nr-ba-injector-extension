@@ -1,14 +1,13 @@
 const bg = chrome.extension.getBackgroundPage();
 const messageTypes = {
     clearLog: 'clearLog',
+    console: 'console',
     localStorage: 'localStorage',
     localStorageKey: 'localStorageKey',
     request: 'request',
     setLocalStorage: 'setLocalStorage',
 }
 const storageKey = 'nr-inserter';
-
-let log = []
 
 const canTrack = () => !!Number(bg.window.localStorage.getItem(`${storageKey}_canTrack`));
 
@@ -20,29 +19,14 @@ const setLocalStorage = (key, val) => {
     window.localStorage.setItem(key, val);
 }
 
-// chrome.webRequest.onBeforeRequest.addListener(
-//     (details) => { 
-//         console.log(details);
-//         return {cancel: true}; 
-//     },
-//     {urls: ["*://*.nr-data.net/*"]},
-//     ["blocking"]
-//   );
-
 chrome.runtime.onMessage.addListener(({type, data}, sender, sendResponse) => {
     switch(type){
-        case messageTypes.clearLog:
-            log = log.filter(x => x.tabId !== data)
-            sendResponse(log)
         case messageTypes.localStorage:
             const val = getLocalStorage(data.key);
             sendResponse(val);
             break;
         case messageTypes.localStorageKey:
             sendResponse(storageKey);
-            break;
-        case messageTypes.request:
-            sendResponse(log)
             break;
         case messageTypes.setLocalStorage:
             setLocalStorage(data.key, data.val);
@@ -52,6 +36,23 @@ chrome.runtime.onMessage.addListener(({type, data}, sender, sendResponse) => {
 
 chrome.webRequest.onBeforeRequest.addListener(data => {
     if (data.url.includes("nr-data")) {
+        let encoded = ''
+        let decoded = ''
+        if (data.requestBody && data.requestBody.raw.length){
+            var postBodyStr = decodeURIComponent(String.fromCharCode.apply(null,
+                new Uint8Array(data.requestBody.raw[0].bytes)));
+            
+            if (postBodyStr && postBodyStr.startsWith("bel")) {
+                try{
+                encoded = postBodyStr
+                decoded = qp.decode(postBodyStr)
+                } catch(err){
+                    // do nothing for now.... something didnt work decoding
+                    chrome.tabs.sendMessage(data.tabId, {type: messageTypes.console, data: postBodyStr, message: 'Failed to decode body...'});
+                }
+            }
+        }
+
         const url = new URL(data.url);
         const paths = url.pathname.split("/").filter(x => x);
 
@@ -65,13 +66,9 @@ chrome.webRequest.onBeforeRequest.addListener(data => {
         const ck = url.searchParams.get("ck");
         const referrer = url.searchParams.get("ref")
 
-        const payload = {type, licenseKey, account, sa, agentVersion, transaction, rst, ck, referrer, timestamp: new Date().toLocaleString(), tabId: data.tabId }
+        const payload = {type, licenseKey, account, sa, agentVersion, transaction, rst, ck, referrer, timestamp: new Date().toLocaleString(), tabId: data.tabId, encodedBody: encoded, decodedBody: decoded }
 
-        if (log.length < 1000) log.unshift(payload)
-        else {
-            log.unshift(payload);
-            log.pop();
-        }
-        chrome.runtime.sendMessage({type: 'request', data: log })
+        if (data.tabId >= 0) chrome.tabs.sendMessage(data.tabId, {type: messageTypes.console, data: payload, message: `Caught '${type}' Request to nr-data!`});  
+
     }
-}, {urls: ["<all_urls>"]}, [])
+}, {urls: ["<all_urls>"]}, ['requestBody'])

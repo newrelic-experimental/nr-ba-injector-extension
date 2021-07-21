@@ -1,11 +1,11 @@
 config = {loader_config: {trustKey: "1"}, info: {beacon:"staging-bam-cell.nr-data.net",errorBeacon:"staging-bam-cell.nr-data.net",sa:1}}
 
-
+chrome.runtime.onMessage.addListener(({type, data, message}, sender, sendResponse) => {
+    if (type === 'console') console.debug(message, data)
+}) 
 
 document.addEventListener("DOMContentLoaded", async () => {
-    
     await removeNRScripts()
-
     chrome.runtime.sendMessage({type: 'localStorageKey'}, storageKey => {
         chrome.runtime.sendMessage({type: 'localStorage', data: {key: `${storageKey}_canTrack`}}, response => {
             const canTrack = !!Number(response);
@@ -16,20 +16,24 @@ document.addEventListener("DOMContentLoaded", async () => {
                     getLocalConfig('licenseKey', storageKey, true),
                     getLocalConfig('applicationID', storageKey, true),
                     getLocalConfig('nrLoaderType', storageKey),
+                    getLocalConfig('customLoaderUrl', storageKey, false, false),
                     getLocalConfig('customAgentUrl', storageKey, false, false),
-                    getLocalConfig('agent', storageKey, true)
+                    getLocalConfig('version', storageKey, false, false)
                 ]).then((data) => {
                     const nrLoaderType = (data[4] || 'spa').toLowerCase();
-                    const customAgentUrl = data[5];
-                    const version = data[6] || 'current';
+                    const customLoaderUrl = data[5];
+                    const customAgentUrl = data[6]
+                    const version = data[7] || 'current';
                     let loaderUrl = ''
-                    if (nrLoaderType === 'custom' && !!customAgentUrl){
-                        loaderUrl = customAgentUrl
+                    let agentUrl = ''
+                    if (nrLoaderType === 'custom' && !!customLoaderUrl) {
+                        loaderUrl = customLoaderUrl
+                        agentUrl = customAgentUrl
                     } else {
                         const types = {'lite': 'rum', 'pro': 'full', 'spa': 'spa'}
                         loaderUrl = `https://js-agent.newrelic.com/nr-loader-${types[nrLoaderType]}-${version}.min.js`
                     }
-                    const aggUrl = new URL(loaderUrl)
+                    const aggUrl = agentUrl ? new URL(agentUrl) : new URL(loaderUrl)
                     config.info.agent = aggUrl.host + aggUrl.pathname.replace('loader-', '')
                     console.debug("appending NREUM data", config)
                     const configString = `window.NREUM=window.NREUM||{};NREUM.loader_config=${JSON.stringify(config.loader_config)};NREUM.info=${JSON.stringify(config.info)}`
@@ -71,8 +75,9 @@ const removeNRScripts = () => {
 const getLocalConfig = (key, storageKey, info = false, update = true) => {
     return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage({type: 'localStorage', data: {key: `${storageKey}_${key}`}}, data => { 
+            const optionalKeys = ['customAgentUrl', 'customLoaderUrl', 'version']
             if (key === 'nrLoaderType' && !data) data = 'SPA'
-            if (!data && key !== 'customAgentUrl') reject(`No data... Empty Param... ${key}`)
+            if (!data && !optionalKeys.includes(key) ) reject(`No data... Empty Param... ${key}`)
             if (update) config.loader_config[key] = data;
             if (info && update) config.info[key] = data;
             resolve(data);

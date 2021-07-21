@@ -1,5 +1,6 @@
 const messageTypes = {
     clearLog: 'clearLog',
+    console: 'console',
     localStorage: 'localStorage',
     localStorageKey: 'localStorageKey',
     request: 'request',
@@ -7,7 +8,6 @@ const messageTypes = {
 }
 
 const canTrack = async () => !!Number(await getLocalStorage('canTrack'))
-
 
 const getLocalStorage = (key) => {
     return new Promise((resolve, reject) => {
@@ -33,26 +33,6 @@ const setLocalStorage = (data) => {
     })
 }
 
-// chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
-//     console.log(tabId, "updated")
-// });
-
-chrome.runtime.onMessage.addListener(({type, data}, sender, sendResponse) => {
-    if (type === messageTypes.request) setLog(data)
-}) 
-
-const setLog = (data = []) => {
-    chrome.tabs.getSelected(null, function(tab) {
-        const {id, url} = tab;
-        const logElem = document.querySelector('#log');
-        const currTabItems = data.filter(item => item.tabId === id)
-        const items = currTabItems.map(item => `<pre class="log-item">${JSON.stringify(item, undefined, 2)}</div>`)
-        logElem.innerHTML = !!items.length ? 
-        `This Tab Has Stored ${items.length} Log Items Since ${currTabItems[currTabItems.length - 1].timestamp}<hr />${items.join("")}` 
-        : '... Waiting for NR Browser Agent Network Requests ...';
-    });
-}
-
 window.addEventListener('load', async () => {
     setLabel(await canTrack());
 
@@ -61,35 +41,15 @@ window.addEventListener('load', async () => {
     setInputValue("#agentID", await getLocalStorage('agentID'))
     setInputValue("#licenseKey", await getLocalStorage('licenseKey'))
     setInputValue("#licenseKey", await getLocalStorage('licenseKey'))
-    setInputValue("#agent", await getLocalStorage('agent'))
+    setInputValue("#version", await getLocalStorage('version'))
     const nrLoaderType = await getLocalStorage('nrLoaderType') || 'SPA'
     setInputValue("#nrLoaderType", nrLoaderType)
+    const customLoaderUrl = await getLocalStorage('customLoaderUrl') || null
+    setInputValue("#customLoaderUrl", customLoaderUrl)
     const customAgentUrl = await getLocalStorage('customAgentUrl') || null
     setInputValue("#customAgentUrl", customAgentUrl)
 
-    // TODO -- get other versions of agent, link to select elem
-
-    document.querySelector("#customAgentUrl").hidden = nrLoaderType.toLowerCase() !== 'custom'
-    
-    chrome.runtime.sendMessage({type: messageTypes.request}, data => setLog(data))
-
-    document.querySelector("#logBtn").addEventListener("click", () => {
-        document.querySelector("#configTab").classList.add("hidden")
-        document.querySelector("#logTab").classList.remove("hidden")
-    })
-
-    document.querySelector("#configBtn").addEventListener("click", () => {
-        document.querySelector("#logTab").classList.add("hidden")
-        document.querySelector("#configTab").classList.remove("hidden")
-    })
-
-    document.querySelector("#clearBtn").addEventListener("click", () => {
-        chrome.tabs.getSelected(null, function(tab) {
-            const {id, url} = tab;
-            chrome.runtime.sendMessage({type: messageTypes.clearLog, data: id}, data => setLog(data))
-        })
-    })
-
+    showHide(nrLoaderType.toLowerCase())
 
     document.querySelector("#btn").addEventListener("click", async () => {
         const ct = await canTrack();
@@ -123,7 +83,18 @@ window.addEventListener('load', async () => {
             setLocalStorage({key: id, val: value})
             document.querySelector("#helper-text").innerText = "Reload any running pages to see changes"
             console.log("id, val", id, value)
-            if (id === 'nrLoaderType') document.querySelector("#customAgentUrl").hidden = value.toLowerCase() !== 'custom'
+            if (id === 'nrLoaderType') {
+                showHide(value.toLowerCase())
+            }
         })
     })
+
+    function showHide (loaderType){
+        document.querySelector("#version").hidden = loaderType === 'custom'
+        document.querySelector("#versionLabel").hidden = loaderType === 'custom'
+        document.querySelector("#customLoaderUrl").hidden = loaderType !== 'custom'
+        document.querySelector("#customLoaderUrlLabel").hidden = loaderType !== 'custom'
+        document.querySelector("#customAgentUrl").hidden = loaderType !== 'custom'
+        document.querySelector("#customAgentUrlLabel").hidden = loaderType !== 'custom'
+    }
 })

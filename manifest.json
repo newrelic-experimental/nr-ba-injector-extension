@@ -25,7 +25,7 @@
       "https://js-agent.newrelic.com/*"
   ],
   "background": {
-    "scripts": ["background/index.js"],
+    "scripts": ["background/index.js", "background/nr-querypack.bundle.js"],
     "persistent": true
   }
 }
