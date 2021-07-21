@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "description": "Inject NR into page",
   "author": "Jordan Porter",
-  "permissions": ["<all_urls>", "webRequest"],
+  "permissions": ["<all_urls>", "webRequest", "webRequestBlocking"],
   "browser_action": {
     "default_title": "NR Injector",
     "default_popup": "popup/index.html",
@@ -25,7 +25,7 @@
       "https://js-agent.newrelic.com/*"
   ],
   "background": {
-    "scripts": ["background/index.js"],
+    "scripts": ["background/index.js", "background/nr-querypack.bundle.js"],
     "persistent": true
   }
 }
