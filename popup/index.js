@@ -42,38 +42,38 @@ window.addEventListener('load', async () => {
     setInputValue("#licenseKey", await getLocalStorage('licenseKey'))
     setInputValue("#licenseKey", await getLocalStorage('licenseKey'))
     setInputValue("#version", await getLocalStorage('version'))
+    setInputValue("#customLoaderUrl", await getLocalStorage('customLoaderUrl') || null)
+    setInputValue("#customAgentUrl", await getLocalStorage('customAgentUrl') || null)
+
     const nrLoaderType = await getLocalStorage('nrLoaderType') || 'SPA'
     setInputValue("#nrLoaderType", nrLoaderType)
-    const customLoaderUrl = await getLocalStorage('customLoaderUrl') || null
-    setInputValue("#customLoaderUrl", customLoaderUrl)
-    const customAgentUrl = await getLocalStorage('customAgentUrl') || null
-    setInputValue("#customAgentUrl", customAgentUrl)
-
     showHide(nrLoaderType.toLowerCase())
 
     document.querySelector("#btn").addEventListener("click", async () => {
-        const ct = await canTrack();
-        const newCanTrack = !ct;
-        setLabel(newCanTrack);
-        setLocalStorage({key: `canTrack`, val: Number(newCanTrack)})
-
-        if (!!newCanTrack){
-            document.querySelector("#helper-text").innerText = "Reload pages to START tracking"
+        const ct = !(await canTrack());
+        setLabel(ct);
+        setLocalStorage({key: `canTrack`, val: Number(ct)})
+        if (!!ct){
+            showHelper("Reload pages to START tracking")
             chrome.browserAction.setIcon({path: {"16": '/assets/icon_16.png', "32": '/assets/icon_32.png'}});
         } else {
-            document.querySelector("#helper-text").innerText = "Reload any running pages to STOP tracking"
+            showHelper("Reload running pages to STOP tracking")
             chrome.browserAction.setIcon({path: {"16": '/assets/icon_disabled_16.png', "32": '/assets/icon_disabled_32.png'}});
         }
-        
+    })
+
+    document.querySelector("#reloadAll").addEventListener("click", async () => {
+        chrome.tabs.query({currentWindow: true}, (tabs) =>{
+            tabs.forEach(tab => chrome.tabs.reload(tab.id))
+            document.querySelector("#helper").hidden = true
+        })
     })
 
     document.querySelectorAll('input').forEach(input => {
         input.addEventListener('input', (val) => {
-            const newValue = val.target.value;
-            const elemID = val.target.id;
-            setLocalStorage({key: elemID, val: newValue})
-            
-            document.querySelector("#helper-text").innerText = "Reload any running pages to see changes"
+            const {id, value} = val.target
+            setLocalStorage({key: id, val: value})
+            showHelper("Reload any running pages to see changes")
         })
     })
 
@@ -81,13 +81,16 @@ window.addEventListener('load', async () => {
         select.addEventListener('input', e => {
             const {id, value} = e.target;
             setLocalStorage({key: id, val: value})
-            document.querySelector("#helper-text").innerText = "Reload any running pages to see changes"
-            console.log("id, val", id, value)
-            if (id === 'nrLoaderType') {
-                showHide(value.toLowerCase())
-            }
+            showHelper("Reload any running pages to see changes")
+            if (id === 'nrLoaderType') showHide(value.toLowerCase())
         })
     })
+
+    function showHelper(message){
+        document.querySelector("#helper").hidden = false
+        document.querySelector("#helper-text").innerText = message
+        document.querySelector("#reloadAll").hidden = false
+    }
 
     function showHide (loaderType){
         document.querySelector("#version").hidden = loaderType === 'custom'

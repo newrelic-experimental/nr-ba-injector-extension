@@ -1,8 +1,8 @@
 body{
     width: auto;
     min-width: 203px;
-    height: 400px;
     overflow-y: scroll;
+    max-height: 90vh;
 }
 
 #btn, .section > select {
@@ -15,6 +15,7 @@ body{
 
 .section{
     padding: 10px 25px;
+    margin: 0;
 }
 
 #helper-text{
@@ -45,4 +46,18 @@ select{
 
 input:invalid {
     border: 2px dashed red;
+  }
+
+  #reloadAll{
+      margin: 0 auto;
+      width: 100%;
+  }
+
+  #btn{
+      width: calc(100% - 30px)
+  }
+
+  #note {
+      font-style: italic;
+      text-align: center;
   }
