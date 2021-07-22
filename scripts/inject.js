@@ -4,12 +4,12 @@ chrome.runtime.onMessage.addListener(({type, data, message}, sender, sendRespons
     if (type === 'console') console.debug(message, data)
 }) 
 
-document.addEventListener("DOMContentLoaded", async () => {
-    await removeNRScripts()
+document.addEventListener("DOMContentLoaded", () => {
     chrome.runtime.sendMessage({type: 'localStorageKey'}, storageKey => {
-        chrome.runtime.sendMessage({type: 'localStorage', data: {key: `${storageKey}_canTrack`}}, response => {
+        chrome.runtime.sendMessage({type: 'localStorage', data: {key: `${storageKey}_canTrack`}}, async response => {
             const canTrack = !!Number(response);
             if (canTrack){
+                await removeNRScripts()
                 Promise.all([
                     getLocalConfig('accountID', storageKey),
                     getLocalConfig('agentID', storageKey),
@@ -19,27 +19,23 @@ document.addEventListener("DOMContentLoaded", async () => {
                     getLocalConfig('customLoaderUrl', storageKey, false, false),
                     getLocalConfig('customAgentUrl', storageKey, false, false),
                     getLocalConfig('version', storageKey, false, false)
-                ]).then((data) => {
-                    const nrLoaderType = (data[4] || 'spa').toLowerCase();
-                    const customLoaderUrl = data[5];
-                    const customAgentUrl = data[6]
-                    const version = data[7] || 'current';
-                    let loaderUrl = ''
-                    let agentUrl = ''
-                    if (nrLoaderType === 'custom' && !!customLoaderUrl) {
+                ]).then(([accountId, agentId, licenseKey, applicationID, nrLoaderType = 'spa', customLoaderUrl, customAgentUrl, version = 'current']) => {
+                    let loaderUrl, agentUrl;
+                    if (nrLoaderType.toLowerCase() === 'custom' && !!customLoaderUrl) {
                         loaderUrl = customLoaderUrl
                         agentUrl = customAgentUrl
                     } else {
                         const types = {'lite': 'rum', 'pro': 'full', 'spa': 'spa'}
-                        loaderUrl = `https://js-agent.newrelic.com/nr-loader-${types[nrLoaderType]}-${version}.min.js`
+                        loaderUrl = `https://js-agent.newrelic.com/nr-loader-${types[nrLoaderType.toLowerCase()]}-${version}.min.js`
                     }
                     const aggUrl = agentUrl ? new URL(agentUrl) : new URL(loaderUrl)
                     config.info.agent = aggUrl.host + aggUrl.pathname.replace('loader-', '')
+                    
                     console.debug("appending NREUM data", config)
                     const configString = `window.NREUM=window.NREUM||{};NREUM.loader_config=${JSON.stringify(config.loader_config)};NREUM.info=${JSON.stringify(config.info)}`
                     prepend(configString, null)
 
-                    console.debug(`inserting ${loaderUrl}`)
+                    console.debug(`injecting ${loaderUrl}`)
                     prepend(null, loaderUrl)
                 }).catch(err => {
                     console.debug(err);
@@ -51,8 +47,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     })
 })
 
-const removeNRScripts = () => {
+const removeNRScripts = (retries = 0) => {
     return new Promise(async (resolve, reject) => {
+        if (retries >= 3) reject("Couldn't remove all the scripts.. too many retries")
         const nrbaScripts = [document, document.head, document.body]
         .reduce((curr, next) => [...curr, ...next.querySelectorAll("script")], [])
         .filter(script => script.id !== 'nrba-injection' && 
@@ -61,13 +58,11 @@ const removeNRScripts = () => {
                 (script.innerHTML && script.innerHTML.includes("NREUM"))
             )
         );
-
         nrbaScripts.forEach(script => {
             console.debug("removing existing NR Browser Agent script -->", script)
             script.remove();
         })
-
-        resolve(!nrbaScripts.length ? true : await removeNRScripts())
+        resolve(!nrbaScripts.length ? true : await removeNRScripts(++retries))
     })
 }
 
