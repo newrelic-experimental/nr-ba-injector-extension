@@ -16,10 +16,15 @@
 ## Getting Started
 > 1. Before using, please go through the [Installation](#installation) steps
 > 2. Open the extension by clicking on its icon.
-> 3. Supply the `staging-one.newrelic.com` NR1 account info to the extension
+> 3. Supply the `staging-one.newrelic.com` NR1 account info to the extension, this is where the agent will send data.
+>     - Select a build of the agent (lite, pro, spa) and a version **or**
+>     - Select `custom` and supply a full url to the loader script and aggregator script
+>         - If you do not supply the aggregator script url, it will use the custom loader url to generate an aggregator url.
 > 4. Make sure `Tracking` is set to `On`
-> 5. Refresh the page if necessary to inject the NR Browser Agent and begin observing the page and any subsequent page.
-> 6. Click `Show Logs` to see a list of the injected NR1 calls made in the current tab.
+> 5. Refresh the page for any changes to take effect, including to inject the NR Browser Agent and begin observing the page and any subsequent page.
+>     - All configurations are accessed when the page loads, any changes you make will only be valid once you've refreshed the target page
+>     - Use the "refresh all tabs" button to refresh all tabs in your browser
+> 6. Open your chrome devtools and enable `verbose` logging to see decoded calls to NR1.
 
 ## Development Notes
 
