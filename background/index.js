@@ -2,22 +2,30 @@ const bg = chrome.extension.getBackgroundPage();
 const messageTypes = {
     clearLog: 'clearLog',
     console: 'console',
+    currentTab: 'currentTab',
     localStorage: 'localStorage',
     localStorageKey: 'localStorageKey',
+    getTracked: 'getTracked',
     request: 'request',
     setLocalStorage: 'setLocalStorage',
+    startTracking: 'startTracking',
+    stopTracking: 'stopTracking'
 }
 const storageKey = 'nr-inserter';
 
-const canTrack = () => !!Number(bg.window.localStorage.getItem(`${storageKey}_canTrack`));
+const trackedTabs = new Set();
+
+const ioBool = io => !!Number(io)
 
 const getLocalStorage = (key) => {
-    return window.localStorage.getItem(key);
+    return window.localStorage.getItem(key) || null;
 }
 
 const setLocalStorage = (key, val) => {
     window.localStorage.setItem(key, val);
 }
+
+const getTrackedTabs = () => Array.from(trackedTabs).map(t => JSON.parse(t))
 
 chrome.runtime.onMessage.addListener(({type, data}, sender, sendResponse) => {
     switch(type){
@@ -31,11 +39,29 @@ chrome.runtime.onMessage.addListener(({type, data}, sender, sendResponse) => {
         case messageTypes.setLocalStorage:
             setLocalStorage(data.key, data.val);
             break;
+        case messageTypes.startTracking:
+            trackedTabs.add(JSON.stringify(data))
+            sendResponse(getTrackedTabs())
+            break
+        case messageTypes.stopTracking:
+            trackedTabs.delete(JSON.stringify(data))
+            sendResponse(getTrackedTabs())
+            break;
+        case messageTypes.getTracked:
+            sendResponse(getTrackedTabs())
+            break
+        case messageTypes.currentTab:
+            chrome.tabs.query({active: true, currentWindow: true}, ([tab]) => {
+                sendResponse(tab)
+            })
+            return true
     }
 })
 
+const tabIsTracked = (tabId) => !!getTrackedTabs().find(t => t.id === tabId)
+
 chrome.webRequest.onBeforeRequest.addListener(data => {
-    if (data.url.includes("nr-data")) {
+    if (data.url.includes("nr-data") && tabIsTracked(data.tabId)) {
         let encoded = ''
         let decoded = ''
         if (data.requestBody && data.requestBody.raw.length){
@@ -72,3 +98,17 @@ chrome.webRequest.onBeforeRequest.addListener(data => {
 
     }
 }, {urls: ["<all_urls>"]}, ['requestBody'])
+
+chrome.webRequest.onHeadersReceived.addListener(
+    data => {
+        if (ioBool(getLocalStorage(`${storageKey}_overrideSecurityPolicy`)) && tabIsTracked(data.tabId)) {
+            const newHeader = {name: "content-security-policy", value: `default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline'; frame-src *; style-src * 'unsafe-inline'`};
+            const responseHeaders = [...data.responseHeaders.filter(x => x.name.toLowerCase() !== 'content-security-policy'), newHeader]
+            return { responseHeaders };
+        }
+    },
+    // filters
+    {urls: ["<all_urls>"]},
+    // extraInfoSpec
+    ["blocking", "responseHeaders", "extraHeaders"]
+  );
