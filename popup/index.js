@@ -83,10 +83,12 @@ const setTrackedTabsList = (trackedTabs) => {
         }
     }).then((tabs = []) => {
         if (tabs.length){
+            if (!!tabs.find(t => t.id === currentTab.id)) document.querySelector("#btn-inject").hidden = true
             buildElems(tabs)
             document.querySelector("#runningTabs").hidden = false
         } else {
             document.querySelector("#runningTabs").hidden = true
+            document.querySelector("#btn-inject").hidden = false
         }
     })
 }

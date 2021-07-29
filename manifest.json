@@ -16,7 +16,8 @@
     {
       "matches": ["http://*/*", "https://*/*"],
       "js": ["scripts/inject.js"],
-      "run_at":"document_start"
+      "run_at":"document_start",
+      "all_frames": true
     } 
   ],
   "web_accessible_resources": [

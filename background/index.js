@@ -15,8 +15,6 @@ const storageKey = 'nr-inserter';
 
 const trackedTabs = new Set();
 
-// const canTrack = () => ioBool(bg.window.localStorage.getItem(`${storageKey}_canTrack`));
-
 const ioBool = io => !!Number(io)
 
 const getLocalStorage = (key) => {
