@@ -22,7 +22,6 @@ document.addEventListener("DOMContentLoaded", () => {
         chrome.runtime.sendMessage({type: messageTypes.getTracked}, trackedTabs => {
             chrome.runtime.sendMessage({type: messageTypes.currentTab}, async currentTab => {
                 if (!!trackedTabs.find(t => t.id === currentTab.id)){ 
-                    prepend(removeNRScripts())
                     Promise.all([
                         getLocalConfig('accountID', storageKey),
                         getLocalConfig('agentID', storageKey),
@@ -50,8 +49,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
                         console.debug(`injecting ${loaderUrl}`)
                         prepend(null, loaderUrl)
-
-                        console.log("window.NREUM", window.NREUM)
                     }).catch(err => {
                         console.debug(err);
                     })
@@ -62,46 +59,6 @@ document.addEventListener("DOMContentLoaded", () => {
         })
     })
 })
-
-const removeNRScripts = () => `console.debug("deleted NREUM", delete window.NREUM)
-console.debug("deleted newrelic", delete window.newrelic)
-console.debug("deleted __nr_require", delete window.__nr_require)
-
-const nrbaScripts = [document, document.head, document.body]
-.reduce((curr, next) => [...curr, ...next.querySelectorAll("script")], [])
-.filter(script => script.id !== 'nrba-injection' && 
-    (
-        (script.src && (script.src.includes("js-agent.newrelic") || script.src.includes("js-agent.nr-assets")) ) || 
-        (script.innerHTML && script.innerHTML.includes("NREUM"))
-    )
-);
-nrbaScripts.forEach(script => {
-    console.debug("removing existing NR Browser Agent script -->", script)
-    script.remove();
-})`
-
-// const removeNRScripts = (retries = 0) => {
-//     console.debug("deleted NREUM", delete window.NREUM)
-//     console.debug("deleted newrelic", delete window.newrelic)
-//     console.debug("deleted __nr_require", delete window.__nr_require)
-//     return new Promise(async (resolve, reject) => {
-//         if (retries >= 3) reject("Couldn't remove all the scripts.. too many retries")
-//         const nrbaScripts = [document, document.head, document.body]
-//         .reduce((curr, next) => [...curr, ...next.querySelectorAll("script")], [])
-//         .filter(script => script.id !== 'nrba-injection' && 
-//             (
-//                 (script.src && (script.src.includes("js-agent.newrelic") || script.src.includes("js-agent.nr-assets")) ) || 
-//                 (script.innerHTML && script.innerHTML.includes("NREUM"))
-//             )
-//         );
-//         nrbaScripts.forEach(script => {
-//             console.debug("removing existing NR Browser Agent script -->", script)
-//             script.remove();
-//         })
-//         resolve(!nrbaScripts.length ? true : await removeNRScripts(++retries))
-//     })
-// }
-
 
 const getLocalConfig = (key, storageKey, info = false, update = true) => {
     return new Promise((resolve, reject) => {
@@ -116,10 +73,10 @@ const getLocalConfig = (key, storageKey, info = false, update = true) => {
     })
 }
 
-const prepend = (content, src, head=true) => {
+function prepend(content, src, head=true) {
     const injection = document.createElement('script');
     injection.id = "nrba-injection"
     if (content) injection.innerHTML = content;
     if (src) injection.src = src;
-    (head ? (document.head || document.documentElement) : document.documentElement).prepend(injection);
+    document.documentElement.prepend(injection)
 }

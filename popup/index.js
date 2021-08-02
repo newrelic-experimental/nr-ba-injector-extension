@@ -108,7 +108,7 @@ const startTracking = () => {
 }
 
 const refreshTab = (tabId) => {
-    chrome.tabs.reload(tabId)
+    setTimeout(() => chrome.tabs.reload(tabId), 1000)
 }
 
 window.addEventListener('load', async () => {
