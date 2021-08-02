@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "description": "Inject NR into page",
   "author": "Jordan Porter",
-  "permissions": ["<all_urls>", "webRequest", "webRequestBlocking", "tabs", "activeTab"],
+  "permissions": ["<all_urls>", "webRequest", "webRequestBlocking", "tabs", "activeTab", "debugger"],
   "browser_action": {
     "default_title": "NR Injector",
     "default_popup": "popup/index.html",

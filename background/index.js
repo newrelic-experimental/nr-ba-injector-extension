@@ -27,7 +27,7 @@ const setLocalStorage = (key, val) => {
 
 const getTrackedTabs = () => Array.from(trackedTabs).map(t => JSON.parse(t))
 
-chrome.runtime.onMessage.addListener(({type, data}, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener( ({type, data}, sender, sendResponse) => {
     switch(type){
         case messageTypes.localStorage:
             const val = getLocalStorage(data.key);
@@ -40,10 +40,12 @@ chrome.runtime.onMessage.addListener(({type, data}, sender, sendResponse) => {
             setLocalStorage(data.key, data.val);
             break;
         case messageTypes.startTracking:
+            intercept(data)
             trackedTabs.add(JSON.stringify(data))
             sendResponse(getTrackedTabs())
             break
         case messageTypes.stopTracking:
+            stopIntercept(data)
             trackedTabs.delete(JSON.stringify(data))
             sendResponse(getTrackedTabs())
             break;
@@ -102,7 +104,7 @@ chrome.webRequest.onBeforeRequest.addListener(data => {
 chrome.webRequest.onHeadersReceived.addListener(
     data => {
         if (ioBool(getLocalStorage(`${storageKey}_overrideSecurityPolicy`)) && tabIsTracked(data.tabId)) {
-            const newHeader = {name: "content-security-policy", value: `default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline'; frame-src *; style-src * 'unsafe-inline'`};
+            const newHeader = {name: "content-security-policy", value: `upgrade-insecure-requests; default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline'; frame-src *; style-src * 'unsafe-inline'; media-src * data: blob: 'unsafe-inline'; worker-src * data: blob: 'unsafe-inline';`};
             const responseHeaders = [...data.responseHeaders.filter(x => x.name.toLowerCase() !== 'content-security-policy'), newHeader]
             return { responseHeaders };
         }
@@ -112,3 +114,104 @@ chrome.webRequest.onHeadersReceived.addListener(
     // extraInfoSpec
     ["blocking", "responseHeaders", "extraHeaders"]
   );
+
+  const stopIntercept = async(tab) => {
+    console.debug("stop intercept")
+    let target = {tabId: tab.id};
+  
+    await new Promise((res, err)=> chrome.debugger.detach(target, result=>{
+      if (chrome.runtime.lastError) {
+        err(chrome.runtime.lastError);
+      } else {
+        res(result);
+      }
+    }));
+
+    try{
+    chrome.debugger.sendCommand(target, "Fetch.disable", (e) => {
+       console.debug('fetch disabled for ', tab.id)
+    })}
+    catch(err){
+        // theres no debugger for this tab
+    }
+  }
+
+  const intercept = async(tab) => {
+    let target = {tabId: tab.id};
+  
+    await new Promise((res, err)=> chrome.debugger.attach(target, "1.3", result=>{
+      if (chrome.runtime.lastError) {
+        err(chrome.runtime.lastError);
+      } else {
+        res(result);
+      }
+    }));
+
+    chrome.debugger.sendCommand(target, "Fetch.enable",
+    {
+       patterns: [{
+          requestStage: "Response",
+          resourceType: "Document"
+       }]
+    }, (e) => {
+       console.debug('fetch enabled for ', tab.id)
+    })
+
+    chrome.debugger.onEvent.addListener(async(source, method, params) => {
+            if (method === "Fetch.requestPaused") { 
+                try{
+                    const requestId = String(params.requestId)
+                    if (params.responseHeaders){
+                        chrome.debugger.sendCommand(target, "Fetch.getResponseBody", { requestId }, async response => {
+                            if (response){
+                                if (!!response.body){
+                                    const strippedHTML = await removeNR(target.tabId, atob(response.body))
+                                    chrome.debugger.sendCommand(target, 'Fetch.fulfillRequest', {
+                                        requestId,
+                                        responseCode: 200,
+                                        body: btoa(strippedHTML),
+                                        responseHeaders: params.responseHeaders
+                                    }, () => {
+                                    })
+                                } else {
+                                    chrome.debugger.sendCommand(target, "Fetch.continueRequest", { requestId }, async body => {
+                                        // console.log("continuedRequest")
+                                    })
+                                }
+                            } else {
+                                chrome.debugger.sendCommand(target, "Fetch.continueRequest", { requestId }, async body => {
+                                    // console.log("continuedRequest")
+                                })
+                            }
+                        })
+                    }
+                } catch(err){
+                    chrome.debugger.sendCommand(target, "Fetch.continueRequest", { requestId }, async body => {
+                        // console.log("continuedRequest")
+                    })
+                }
+            }
+     })
+  }
+
+  const removeNR = (tabId, data) => {
+    return new Promise((resolve, reject) => {
+        var parser = new DOMParser();
+        var htmlDoc = parser.parseFromString(data, 'text/html'); 
+        const nrbaScripts = [htmlDoc.documentElement, htmlDoc.head, htmlDoc.body]
+        .reduce((curr, next) => [...curr, ...next.querySelectorAll("script")], [])
+        .filter(script => script.id !== 'nrba-injection' && 
+            (
+                (script.src && (script.src.includes("js-agent.newrelic") || script.src.includes("js-agent.nr-assets")) ) || 
+                (script.innerHTML && script.innerHTML.includes("NREUM"))
+            )
+        );
+        nrbaScripts.forEach(script => {
+            console.debug(`Tab ${tabId} HTML document has existing NR Script. removing script -->`, script)
+            script.remove();
+        })
+        const newHTML = htmlDoc.documentElement.outerHTML
+        resolve(newHTML)
+    })
+    
+}   
