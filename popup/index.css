@@ -81,7 +81,7 @@ input:invalid {
     margin-bottom: 5px;
 }
 
-i {
+i.btn {
     background: black;
     border-radius: 4px;
     padding: 5px;
@@ -121,4 +121,23 @@ i:hover{
 
 .border-right { 
     border-right: 1px solid #888;
+}
+
+#container{
+    align-items: flex-start;
+}
+
+#loader{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+}
+
+#loader > i {
+    font-size: x-large;
+}
+
+.hidden { 
+    display: none !important
 }
