@@ -10,7 +10,7 @@
     "default_popup": "popup/index.html",
     "default_icon": "assets/icon_32.png"
   },
-  "icons": {"16": "assets/icon_16.png", "32": "assets/icon_32.png"},
+  "icons": {"16": "assets/icon_16.png", "32": "assets/icon_32.png", "128": "assets/icon_128.png"},
   "content_security_policy": "object-src 'self'; script-src 'self' https://js-agent.newrelic.com https://staging-bam-cell.nr-data.net https://kit.fontawesome.com/7b497df91f.js;",
   "content_scripts": [
     {
