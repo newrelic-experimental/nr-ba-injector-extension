@@ -80,11 +80,11 @@ const setTrackedTabsList = (trackedTabs) => {
             const buttonWrapper = document.createElement("div")
             buttonWrapper.className = "flex-between"
             const stopButton = document.createElement("i")
-            stopButton.classList.add(...['fas', 'fa-trash-alt'])
+            stopButton.classList.add(...['fas', 'fa-trash-alt', 'btn'])
             stopButton.onclick = () => stopTracking(tab)
 
             const refreshButton = document.createElement("i")
-            refreshButton.classList.add(...['fas', 'fa-sync'])
+            refreshButton.classList.add(...['fas', 'fa-sync', 'btn'])
             refreshButton.onclick = () => refreshTab(tab.id)
     
             div.appendChild(section)
@@ -187,6 +187,11 @@ window.addEventListener('load', async () => {
             if (id === 'nrLoaderType') showHide(value.toLowerCase())
         })
     })
+
+    setTimeout(() => {
+        document.querySelector("#loader").classList.add("hidden")
+        document.querySelector("#container").classList.remove("hidden")
+    }, 250)
 
     function showHelper(message){
         document.querySelector("#helper").hidden = false
