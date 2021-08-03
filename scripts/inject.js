@@ -46,11 +46,13 @@ document.addEventListener("DOMContentLoaded", () => {
                         getLocalConfig('agentID', storageKey),
                         getLocalConfig('licenseKey', storageKey, true),
                         getLocalConfig('applicationID', storageKey, true),
-                        getLocalConfig('nrLoaderType', storageKey),
+                        getLocalConfig('nrLoaderType', storageKey, false, true, 'SPA'),
                         getLocalConfig('customLoaderUrl', storageKey, false, false),
                         getLocalConfig('customAgentUrl', storageKey, false, false),
-                        getLocalConfig('version', storageKey, false, false)
-                    ]).then(([accountId, agentId, licenseKey, applicationID, nrLoaderType = 'spa', customLoaderUrl, customAgentUrl, version = 'current']) => {
+                        getLocalConfig('beacon', storageKey, true, true, 'staging-bam-cell.nr-data.net'),
+                        getLocalConfig('errorBeacon', storageKey, true, true, 'staging-bam-cell.nr-data.net'),
+                        getLocalConfig('version', storageKey, false, false, 'current')
+                    ]).then(([accountId, agentId, licenseKey, applicationID, nrLoaderType = 'spa', customLoaderUrl, customAgentUrl, beacon, errorBeacon, version]) => {
                         let loaderUrl, agentUrl;
                         if (nrLoaderType.toLowerCase() === 'custom' && !!customLoaderUrl) {
                             loaderUrl = customLoaderUrl
@@ -81,11 +83,11 @@ document.addEventListener("DOMContentLoaded", () => {
     })
 })
 
-const getLocalConfig = (key, storageKey, info = false, update = true) => {
+const getLocalConfig = (key, storageKey, info = false, update = true, fallback = null) => {
     return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage({type: 'localStorage', data: {key: `${storageKey}_${key}`}}, data => { 
             const optionalKeys = ['customAgentUrl', 'customLoaderUrl', 'version']
-            if (key === 'nrLoaderType' && !data) data = 'SPA'
+            if (!data && !!fallback) data = fallback
             if (!data && !optionalKeys.includes(key) ) reject(`No data... Empty Param... ${key}`)
             if (update) config.loader_config[key] = data;
             if (info && update) config.info[key] = data;
