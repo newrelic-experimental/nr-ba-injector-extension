@@ -8,19 +8,38 @@ const messageTypes = {
     request: 'request',
     setLocalStorage: 'setLocalStorage',
     startTracking: 'startTracking',
-    stopTracking: 'stopTracking'
+    stopTracking: 'stopTracking',
+    trackedTabsChange: 'trackedTabsChange'
+}
+
+const ioBool = io => !!Number(io)
+
+const logger = {
+    info: (msg, data = '') => {
+        console.debug(`%c${msg}\n`, `background: black; color: orange; font-style: italic;`, data)
+    },
+    data: (msg, data = '') => {
+        console.debug(`%c${msg}\n`, `background: black; color: cyan; font-weight: bold;`, data)
+    },
+    warn: (msg, data = '') => {
+        console.debug(`%c${msg}\n`, `background: black; color: maroon; font-weight: bold;`, data)
+    }
 }
 
 config = {loader_config: {trustKey: "1"}, info: {beacon:"staging-bam-cell.nr-data.net",errorBeacon:"staging-bam-cell.nr-data.net",sa:1}}
 
-chrome.runtime.onMessage.addListener(({type, data, message}, sender, sendResponse) => {
-    if (type === 'console') console.debug(message, data)
-}) 
 
 document.addEventListener("DOMContentLoaded", () => {
     chrome.runtime.sendMessage({type: messageTypes.localStorageKey}, storageKey => {
         chrome.runtime.sendMessage({type: messageTypes.getTracked}, trackedTabs => {
             chrome.runtime.sendMessage({type: messageTypes.currentTab}, async currentTab => {
+                if (currentTab.url === window.location.href){
+                    chrome.runtime.onMessage.addListener(({type, data, message, color}, sender, sendResponse) => {
+                        if (type === 'console') {
+                            logger.data(message, data)
+                        }
+                    }) 
+                }
                 if (!!trackedTabs.find(t => t.id === currentTab.id)){ 
                     Promise.all([
                         getLocalConfig('accountID', storageKey),
@@ -43,17 +62,19 @@ document.addEventListener("DOMContentLoaded", () => {
                         const aggUrl = agentUrl ? new URL(agentUrl) : new URL(loaderUrl)
                         config.info.agent = aggUrl.host + aggUrl.pathname.replace('loader-', '')
                         
-                        console.debug("appending NREUM data", config)
+                        logger.info(`appending NREUM data into\n${window.location.href}`, config)
                         const configString = `window.NREUM=window.NREUM||{};NREUM.loader_config=${JSON.stringify(config.loader_config)};NREUM.info=${JSON.stringify(config.info)}`
                         prepend(configString, null)
 
-                        console.debug(`injecting ${loaderUrl}`)
+                        logger.info(`injecting\n${loaderUrl}\ninto\n${window.location.href}`)
                         prepend(null, loaderUrl)
+                        
+                        logger.info(`----------- INJECTION COMPLETE ----------`)
                     }).catch(err => {
-                        console.debug(err);
+                        logger.warn(err);
                     })
                 } else {
-                    console.debug("CANT TRACK! DONT INSERT SCRIPT")
+                    logger.warn(`CANT TRACK ${window.location.href}! DONT INSERT SCRIPT`)
                 }
             })
         })

@@ -14,16 +14,22 @@
             <h3 class="section">New Relic Injector</h2>
             <div class="section">
                 <div>
-                    <label for="accountID">Account ID</label><input type="text" id="accountID" placeholder="Account ID">
+                    <label for="accountID">Account ID</label><input type="text" id="accountID" placeholder="Account ID" required>
                 </div>
                 <div>
-                    <label for="agentID">Agent ID</label><input type="text" id="agentID" placeholder="Agent ID">
+                    <label for="agentID">Agent ID</label><input type="text" id="agentID" placeholder="Agent ID" required>
                 </div>
                 <div>
-                    <label for="applicationID">Application ID</label><input type="text" id="applicationID" placeholder="Application ID">
+                    <label for="applicationID">Application ID</label><input type="text" id="applicationID" placeholder="Application ID" required>
                 </div>
                 <div>
-                    <label for="accountID">License Key</label><input type="text" id="licenseKey" placeholder="License Key">
+                    <label for="accountID">License Key</label><input type="text" id="licenseKey" placeholder="License Key" required>
+                </div>
+                <div>
+                    <label for="beacon">Beacon</label><input type="text" id="beacon" placeholder="Beacon URL" value="staging-bam-cell.nr-data.net" required>
+                </div>
+                <div>
+                    <label for="accountID">Error Beacon</label><input type="text" id="errorBeacon" placeholder="Error Beacon URL" value="staging-bam-cell.nr-data.net" required>
                 </div>
                 <div>
                     <label for="version" id="versionLabel">Agent Version</label><input type="text" id="version" placeholder="Agent Version Number">
@@ -48,12 +54,9 @@
             </div>
             <div class="section">
                 <div class="flex-between"><button id="btn-inject">Inject NR Into This Tab</button></div>
-                <div class="flex-between"><button id="btn-disable-security">Disable Security: </button><span id="overrideSecurityPolicy"></span></div>
+                <div class="flex-between"><button class="toggle-btn" id="btn-disable-security">Disable Security: </button><span id="overrideSecurityPolicy"></span></div>
             </div>
-            <hr />
-            <div class="section" id="note">
-                Open devtools and turn on verbose logging to see request data
-            </div>
+            
             <div class="section" id="helper" hidden>
                 <div id="helper-text"></div>
                 <hr />
@@ -63,6 +66,10 @@
         <div id="runningTabs" hidden>
             <h3 class="section">Injected Tabs</h2>
             <div id="trackedTabs" class="section"></div>
+            <hr />
+            <div class="section" id="note">
+                Open devtools and turn on verbose logging to see event data
+            </div>
         </div>
     </div>
 </body>

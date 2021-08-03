@@ -9,7 +9,8 @@ const messageTypes = {
     request: 'request',
     setLocalStorage: 'setLocalStorage',
     startTracking: 'startTracking',
-    stopTracking: 'stopTracking'
+    stopTracking: 'stopTracking',
+    trackedTabsChange: 'trackedTabsChange'
 }
 const storageKey = 'nr-inserter';
 
@@ -26,6 +27,8 @@ const setLocalStorage = (key, val) => {
 }
 
 const getTrackedTabs = () => Array.from(trackedTabs).map(t => JSON.parse(t))
+
+const getTrackedTabById = tabId => getTrackedTabs().find(x => x.id === tabId)
 
 chrome.runtime.onMessage.addListener( ({type, data}, sender, sendResponse) => {
     switch(type){
@@ -62,6 +65,28 @@ chrome.runtime.onMessage.addListener( ({type, data}, sender, sendResponse) => {
 
 const tabIsTracked = (tabId) => !!getTrackedTabs().find(t => t.id === tabId)
 
+chrome.tabs.onRemoved.addListener(tabId => {
+    trackedTabs.delete(JSON.stringify(getTrackedTabById(tabId)))
+    chrome.runtime.sendMessage({type: messageTypes.trackedTabsChange, data: getTrackedTabs()})
+})
+
+chrome.tabs.onUpdated.addListener((tabId, newInfo) => {
+    if (!!newInfo.url || !!newInfo.title || !!newInfo.favIconUrl) {
+        const tab = getTrackedTabById(tabId)
+        if (tab){
+            const newTab = {
+                ...tab, 
+                url: newInfo.url || tab.url, 
+                title: newInfo.title || tab.title, 
+                favIconUrl: newInfo.favIconUrl || tab.favIconUrl
+            }
+            trackedTabs.delete(JSON.stringify(tab))
+            trackedTabs.add(JSON.stringify(newTab))
+            chrome.runtime.sendMessage({type: messageTypes.trackedTabsChange, data: getTrackedTabs()})
+        }
+    }
+})
+
 chrome.webRequest.onBeforeRequest.addListener(data => {
     if (data.url.includes("nr-data") && tabIsTracked(data.tabId)) {
         let encoded = ''
@@ -96,7 +121,7 @@ chrome.webRequest.onBeforeRequest.addListener(data => {
 
         const payload = {type, licenseKey, account, sa, agentVersion, transaction, rst, ck, referrer, timestamp: new Date().toLocaleString(), tabId: data.tabId, encodedBody: encoded, decodedBody: decoded }
 
-        if (data.tabId >= 0) chrome.tabs.sendMessage(data.tabId, {type: messageTypes.console, data: payload, message: `Caught '${type}' Request to nr-data!`});  
+        if (data.tabId >= 0) chrome.tabs.sendMessage(data.tabId, {type: messageTypes.console, data: payload, message: `${data.initiator}\ninitiated '${type}' request to nr-data!`});  
 
     }
 }, {urls: ["<all_urls>"]}, ['requestBody'])
@@ -163,21 +188,15 @@ chrome.webRequest.onHeadersReceived.addListener(
                     const requestId = String(params.requestId)
                     if (params.responseHeaders){
                         chrome.debugger.sendCommand(target, "Fetch.getResponseBody", { requestId }, async response => {
-                            if (response){
-                                if (!!response.body){
-                                    const strippedHTML = await removeNR(target.tabId, atob(response.body))
-                                    chrome.debugger.sendCommand(target, 'Fetch.fulfillRequest', {
+                            if (response && !!response.body){
+                                const strippedHTML = await removeNR(target.tabId, Base64.decode(response.body))
+                                chrome.debugger.sendCommand(target, 'Fetch.fulfillRequest', {
                                         requestId,
                                         responseCode: 200,
-                                        body: btoa(strippedHTML),
+                                        body: Base64.encode(strippedHTML),
                                         responseHeaders: params.responseHeaders
                                     }, () => {
-                                    })
-                                } else {
-                                    chrome.debugger.sendCommand(target, "Fetch.continueRequest", { requestId }, async body => {
-                                        // console.log("continuedRequest")
-                                    })
-                                }
+                                })
                             } else {
                                 chrome.debugger.sendCommand(target, "Fetch.continueRequest", { requestId }, async body => {
                                     // console.log("continuedRequest")

@@ -11,7 +11,7 @@
     "default_icon": "assets/icon_32.png"
   },
   "icons": {"16": "assets/icon_16.png", "32": "assets/icon_32.png"},
-  "content_security_policy": "object-src 'self'; script-src 'self' sha256-rprxG7jnStB2wB4iccCbbwNnefU5XeNeNtbNWF0Fb4s= https://js-agent.newrelic.com https://staging-bam-cell.nr-data.net https://kit.fontawesome.com/7b497df91f.js;",
+  "content_security_policy": "object-src 'self'; script-src 'self' https://js-agent.newrelic.com https://staging-bam-cell.nr-data.net https://kit.fontawesome.com/7b497df91f.js;",
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
@@ -22,12 +22,11 @@
   ],
   "web_accessible_resources": [
       "scripts/*.js",
-      "scripts/loaders/*.js",
       "https://js-agent.newrelic.com/*",
       "https://kit.fontawesome.com/7b497df91f.js"
   ],
   "background": {
-    "scripts": ["background/index.js", "background/nr-querypack.bundle.js"],
+    "scripts": ["background/base64.js", "background/index.js", "background/nr-querypack.bundle.js"],
     "persistent": true
   }
 }
