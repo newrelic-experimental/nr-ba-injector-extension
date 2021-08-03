@@ -8,7 +8,8 @@ const messageTypes = {
     request: 'request',
     setLocalStorage: 'setLocalStorage',
     startTracking: 'startTracking',
-    stopTracking: 'stopTracking'
+    stopTracking: 'stopTracking',
+    trackedTabsChange: 'trackedTabsChange'
 }
 
 let currentTab;
@@ -29,7 +30,7 @@ const getLocalStorage = (key) => {
 const ioBool = io => !!Number(io)
 
 const setInputValue = (selector, value) => {
-    document.querySelector(selector).value = value || "";
+    if (value) document.querySelector(selector).value = value
 }
 
 const setInputChecked = (selector, checked) => {
@@ -46,16 +47,35 @@ const setLocalStorage = (data) => {
     })
 }
 
+chrome.runtime.onMessage.addListener( ({type, data}, sender, sendResponse) => {
+    if (type === messageTypes.trackedTabsChange) setTrackedTabsList(data)
+})
+
 const setTrackedTabsList = (trackedTabs) => {
     const buildElems = (trackedTabs) => {
         const tabList = document.querySelector("#trackedTabs")
         tabList.innerHTML = ""
         trackedTabs.forEach(tab => {
             const div = document.createElement("div")
-            div.classList.add(...["flex-between", "gray"])
+            div.classList.add(...["flex-between", "gray", "tab-list-container"])
+            div.title = "Click to Focus Tab"
+
+            const listIcon = document.createElement("img")
+            listIcon.className = "list-icon"
+            listIcon.src = tab.favIconUrl
+
+            const tabTitle = document.createElement("div")
+            tabTitle.innerText = tab.title
+            tabTitle.className = "flex-grow"
+
             const section = document.createElement("div")
-            section.className = "section"
-            section.innerText = tab.title
+            section.classList.add(...["section", "flex-between", "flex-grow", "pointer"])
+            section.onclick = () => {
+                chrome.tabs.update(tab.id, {highlighted: true})
+                chrome.tabs.update(currentTab.id, {highlighted: false})
+            }
+            section.appendChild(listIcon)
+            section.appendChild(tabTitle)
 
             const buttonWrapper = document.createElement("div")
             buttonWrapper.className = "flex-between"
@@ -86,7 +106,9 @@ const setTrackedTabsList = (trackedTabs) => {
             if (!!tabs.find(t => t.id === currentTab.id)) document.querySelector("#btn-inject").hidden = true
             buildElems(tabs)
             document.querySelector("#runningTabs").hidden = false
+            document.querySelector("#configTab").classList.add("border-right")
         } else {
+            document.querySelector("#configTab").classList.remove("border-right")
             document.querySelector("#runningTabs").hidden = true
             document.querySelector("#btn-inject").hidden = false
         }
@@ -120,7 +142,8 @@ window.addEventListener('load', async () => {
     setInputValue("#applicationID", await getLocalStorage('applicationID'))
     setInputValue("#agentID", await getLocalStorage('agentID'))
     setInputValue("#licenseKey", await getLocalStorage('licenseKey'))
-    setInputValue("#licenseKey", await getLocalStorage('licenseKey'))
+    setInputValue("#beacon", await getLocalStorage('beacon'))
+    setInputValue("#errorBeacon", await getLocalStorage('errorBeacon'))
     setInputValue("#version", await getLocalStorage('version'))
     setInputValue("#customLoaderUrl", await getLocalStorage('customLoaderUrl') || null)
     setInputValue("#customAgentUrl", await getLocalStorage('customAgentUrl') || null)
@@ -133,7 +156,7 @@ window.addEventListener('load', async () => {
     document.querySelector("#btn-inject").addEventListener("click", async () => {
         startTracking()
     })
-    
+
     document.querySelector("#btn-disable-security").addEventListener("click", async () => {
         const overrideSecurityPolicy = !ioBool(await getLocalStorage('overrideSecurityPolicy'))
         setOnOffLabel("#overrideSecurityPolicy", overrideSecurityPolicy);

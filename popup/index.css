@@ -96,3 +96,29 @@ i:hover{
 .gray{
     background: lightgray;
 }
+
+.list-icon{
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+}
+
+.tab-list-container{
+    border-radius: 8px;
+}
+
+.tab-list-container:hover{
+    background-color: #ddd;
+}
+
+.flex-grow{
+    flex-grow: 1;
+}
+
+.pointer {
+    cursor: pointer;
+}
+
+.border-right { 
+    border-right: 1px solid #888;
+}
