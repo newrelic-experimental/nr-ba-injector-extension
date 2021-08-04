@@ -51,29 +51,36 @@ document.addEventListener("DOMContentLoaded", () => {
                         getLocalConfig('customAgentUrl', storageKey, false, false),
                         getLocalConfig('beacon', storageKey, true, true, 'staging-bam-cell.nr-data.net'),
                         getLocalConfig('errorBeacon', storageKey, true, true, 'staging-bam-cell.nr-data.net'),
-                        getLocalConfig('version', storageKey, false, false, 'current')
-                    ]).then(([accountId, agentId, licenseKey, applicationID, nrLoaderType = 'spa', customLoaderUrl, customAgentUrl, beacon, errorBeacon, version]) => {
-                        let loaderUrl, agentUrl;
-                        if (nrLoaderType.toLowerCase() === 'custom' && !!customLoaderUrl) {
-                            loaderUrl = customLoaderUrl
-                            agentUrl = customAgentUrl
+                        getLocalConfig('version', storageKey, false, false, 'current'),
+                        getLocalConfig('copyPaste', storageKey, false, false)
+                    ]).then(([accountId, agentId, licenseKey, applicationID, nrLoaderType, customLoaderUrl, customAgentUrl, beacon, errorBeacon, version, copyPaste]) => {
+                        if (nrLoaderType.toLowerCase() === 'copy-paste' && copyPaste){
+                            logger.info(`Injecting copy/paste snippet into \n${window.location.href}`)
+                            prepend(copyPaste, null, true)
                         } else {
-                            const types = {'lite': 'rum', 'pro': 'full', 'spa': 'spa'}
-                            loaderUrl = `https://js-agent.newrelic.com/nr-loader-${types[nrLoaderType.toLowerCase()]}-${version}.min.js`
-                        }
-                        const aggUrl = agentUrl ? new URL(agentUrl) : new URL(loaderUrl)
-                        config.info.agent = aggUrl.host + aggUrl.pathname.replace('loader-', '')
-                        
-                        logger.info(`appending NREUM data into\n${window.location.href}`, config)
-                        const configString = `window.NREUM=window.NREUM||{};NREUM.loader_config=${JSON.stringify(config.loader_config)};NREUM.info=${JSON.stringify(config.info)}`
-                        prepend(configString, null)
+                            let loaderUrl, agentUrl;
+                            if (nrLoaderType.toLowerCase() === 'custom' && !!customLoaderUrl) {
+                                loaderUrl = customLoaderUrl
+                                agentUrl = customAgentUrl
+                            } 
+                            else {
+                                const types = {'lite': 'rum', 'pro': 'full', 'spa': 'spa'}
+                                loaderUrl = `https://js-agent.newrelic.com/nr-loader-${types[nrLoaderType.toLowerCase()]}-${version}.min.js`
+                            }
+                            const aggUrl = agentUrl ? new URL(agentUrl) : new URL(loaderUrl)
+                            config.info.agent = aggUrl.host + aggUrl.pathname.replace('loader-', '')
+                            
+                            logger.info(`appending NREUM data into\n${window.location.href}`, config)
+                            const configString = `window.NREUM=window.NREUM||{};NREUM.loader_config=${JSON.stringify(config.loader_config)};NREUM.info=${JSON.stringify(config.info)}`
+                            prepend(configString, null)
 
-                        logger.info(`injecting\n${loaderUrl}\ninto\n${window.location.href}`)
-                        prepend(null, loaderUrl)
+                            logger.info(`injecting\n${loaderUrl}\ninto\n${window.location.href}`)
+                            prepend(null, loaderUrl)
+                        }
                         
                         logger.info(`----------- INJECTION COMPLETE ----------`)
                     }).catch(err => {
-                        logger.warn(err);
+                        console.error(err)
                     })
                 } else {
                     logger.warn(`CANT TRACK ${window.location.href}! DONT INSERT SCRIPT`)
@@ -86,7 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
 const getLocalConfig = (key, storageKey, info = false, update = true, fallback = null) => {
     return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage({type: 'localStorage', data: {key: `${storageKey}_${key}`}}, data => { 
-            const optionalKeys = ['customAgentUrl', 'customLoaderUrl', 'version']
+            const optionalKeys = ['customAgentUrl', 'customLoaderUrl', 'version', 'copyPaste']
             if (!data && !!fallback) data = fallback
             if (!data && !optionalKeys.includes(key) ) reject(`No data... Empty Param... ${key}`)
             if (update) config.loader_config[key] = data;
@@ -96,7 +103,11 @@ const getLocalConfig = (key, storageKey, info = false, update = true, fallback =
     })
 }
 
-function prepend(content, src, head=true) {
+function prepend(content, src, contentIsScriptString = false) {
+    if (contentIsScriptString){
+        // content = content.replace(/<script>/g, '').replace(/<\/script>/g, '')
+        content = new DOMParser().parseFromString(content, "text/html").querySelector("script").innerHTML
+    }
     const injection = document.createElement('script');
     injection.id = "nrba-injection"
     if (content) injection.innerHTML = content;

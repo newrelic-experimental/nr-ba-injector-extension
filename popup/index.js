@@ -147,6 +147,7 @@ window.addEventListener('load', async () => {
     setInputValue("#version", await getLocalStorage('version'))
     setInputValue("#customLoaderUrl", await getLocalStorage('customLoaderUrl') || null)
     setInputValue("#customAgentUrl", await getLocalStorage('customAgentUrl') || null)
+    setInputValue("#copyPaste", await getLocalStorage('copyPaste') || null)
 
     const nrLoaderType = await getLocalStorage('nrLoaderType') || 'SPA'
     setInputValue("#nrLoaderType", nrLoaderType)
@@ -171,10 +172,10 @@ window.addEventListener('load', async () => {
         })
     })
 
-    document.querySelectorAll('input[type="text"]').forEach(input => {
+    document.querySelectorAll('input[type="text"], textarea').forEach(input => {
         input.addEventListener('input', (val) => {
             const {id, value} = val.target
-            setLocalStorage({key: id, val: value})
+            setLocalStorage({key: id, val: (value || "").trim().replace(/\r?\n|\r/g, '')})
             showHelper("Reload any running pages to see changes")
         })
     })
@@ -200,11 +201,18 @@ window.addEventListener('load', async () => {
     }
 
     function showHide (loaderType){
-        document.querySelector("#version").hidden = loaderType === 'custom'
-        document.querySelector("#versionLabel").hidden = loaderType === 'custom'
-        document.querySelector("#customLoaderUrl").hidden = loaderType !== 'custom'
-        document.querySelector("#customLoaderUrlLabel").hidden = loaderType !== 'custom'
-        document.querySelector("#customAgentUrl").hidden = loaderType !== 'custom'
-        document.querySelector("#customAgentUrlLabel").hidden = loaderType !== 'custom'
+        switch(loaderType){
+            case 'copy-paste':
+                document.querySelectorAll(".standard, .non-custom, .custom").forEach(x => x.hidden = true)
+                document.querySelectorAll(".copy-paste").forEach(x => x.hidden = false)
+                break
+            case 'custom':
+                document.querySelectorAll(".non-custom, .copy-paste").forEach(x => x.hidden = true)
+                document.querySelectorAll(".custom, .standard").forEach(x => x.hidden = false)
+                break
+            default:
+                document.querySelectorAll(".custom, .copy-paste").forEach(x => x.hidden = true)
+                document.querySelectorAll(".standard, .non-custom").forEach(x => x.hidden = false)
+        }
     }
 })
