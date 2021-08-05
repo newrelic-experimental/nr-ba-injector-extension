@@ -5,6 +5,7 @@ const messageTypes = {
     currentTab: 'currentTab',
     localStorage: 'localStorage',
     localStorageKey: 'localStorageKey',
+    getTabInfo: 'getTabInfo',
     getTracked: 'getTracked',
     request: 'request',
     setLocalStorage: 'setLocalStorage',
@@ -43,10 +44,11 @@ chrome.runtime.onMessage.addListener( ({type, data}, sender, sendResponse) => {
             setLocalStorage(data.key, data.val);
             break;
         case messageTypes.startTracking:
-            intercept(data)
-            trackedTabs.add(JSON.stringify(data))
-            sendResponse(getTrackedTabs())
-            break
+            intercept(data).then(() => {
+                trackedTabs.add(JSON.stringify(data))
+                sendResponse(getTrackedTabs())
+            })
+            return true
         case messageTypes.stopTracking:
             stopIntercept(data)
             trackedTabs.delete(JSON.stringify(data))
@@ -60,6 +62,9 @@ chrome.runtime.onMessage.addListener( ({type, data}, sender, sendResponse) => {
                 sendResponse(tab)
             })
             return true
+        case messageTypes.getTabInfo:
+            sendResponse(sender)
+            break;
     }
 })
 
@@ -143,6 +148,15 @@ chrome.webRequest.onHeadersReceived.addListener(
   const stopIntercept = async(tab) => {
     console.debug("stop intercept")
     let target = {tabId: tab.id};
+
+    try{
+        chrome.debugger.sendCommand(target, "Fetch.disable", (e) => {
+           console.debug('fetch disabled for ', tab.id)
+        })
+    }
+    catch(err){
+        // theres no debugger for this tab
+    }
   
     await new Promise((res, err)=> chrome.debugger.detach(target, result=>{
       if (chrome.runtime.lastError) {
@@ -151,69 +165,69 @@ chrome.webRequest.onHeadersReceived.addListener(
         res(result);
       }
     }));
-
-    try{
-    chrome.debugger.sendCommand(target, "Fetch.disable", (e) => {
-       console.debug('fetch disabled for ', tab.id)
-    })}
-    catch(err){
-        // theres no debugger for this tab
-    }
   }
 
-  const intercept = async(tab) => {
-    let target = {tabId: tab.id};
+  const intercept = (tab) => {
+      return new Promise(async (resolve, reject) => {
+        let target = {tabId: tab.id};
   
-    await new Promise((res, err)=> chrome.debugger.attach(target, "1.3", result=>{
-      if (chrome.runtime.lastError) {
-        err(chrome.runtime.lastError);
-      } else {
-        res(result);
-      }
-    }));
+        await new Promise((res, err)=> chrome.debugger.attach(target, "1.3", result=>{
+          if (chrome.runtime.lastError) {
+            err(chrome.runtime.lastError);
+          } else {
+            res(result);
+          }
+        }));
+    
+        chrome.debugger.sendCommand(target, "Fetch.enable",
+        {
+           patterns: [{
+              requestStage: "Response",
+              resourceType: "Document"
+           }]
+        }, (e) => {
+           console.debug('fetch enabled for ', tab.id)
+           resolve()
+        })
+      })
+  }
 
-    chrome.debugger.sendCommand(target, "Fetch.enable",
-    {
-       patterns: [{
-          requestStage: "Response",
-          resourceType: "Document"
-       }]
-    }, (e) => {
-       console.debug('fetch enabled for ', tab.id)
-    })
+  chrome.debugger.onEvent.addListener(async(source, method, params) => {
 
-    chrome.debugger.onEvent.addListener(async(source, method, params) => {
-            if (method === "Fetch.requestPaused") { 
-                try{
-                    const requestId = String(params.requestId)
-                    if (params.responseHeaders){
-                        chrome.debugger.sendCommand(target, "Fetch.getResponseBody", { requestId }, async response => {
-                            if (response && !!response.body){
-                                const strippedHTML = await removeNR(target.tabId, Base64.decode(response.body))
-                                chrome.debugger.sendCommand(target, 'Fetch.fulfillRequest', {
-                                        requestId,
-                                        responseCode: 200,
-                                        body: Base64.encode(strippedHTML),
-                                        responseHeaders: params.responseHeaders
-                                    }, () => {
-                                })
-                            } else {
-                                chrome.debugger.sendCommand(target, "Fetch.continueRequest", { requestId }, async body => {
-                                    // console.log("continuedRequest")
-                                })
-                            }
+    if (method === "Fetch.requestPaused") { 
+        try{
+            const requestId = String(params.requestId)
+            if (params.responseHeaders){
+                chrome.debugger.sendCommand(source, "Fetch.getResponseBody", { requestId }, async response => {
+                    if (response && !!response.body){
+                        const {newHTML, messages} = await removeNRAndInject(source.tabId, Base64.decode(response.body))
+                        chrome.debugger.sendCommand(source, 'Fetch.fulfillRequest', {
+                                requestId,
+                                responseCode: 200,
+                                body: Base64.encode(newHTML),
+                                responseHeaders: params.responseHeaders
+                            }, () => {
+                                // messages.forEach(({data, message}) => {
+                                //     console.debug(`${message}\ninto ${params.request.url}`)
+                                //     setTimeout(() => chrome.tabs.sendMessage(source.tabId, {type: messageTypes.console, method:'info', data, message: `${message}\ninto ${params.request.url}`}), 500)
+                                // })
+                        })
+                    } else {
+                        chrome.debugger.sendCommand(source, "Fetch.continueRequest", { requestId }, async body => {
+                            // console.log("continuedRequest")
                         })
                     }
-                } catch(err){
-                    chrome.debugger.sendCommand(target, "Fetch.continueRequest", { requestId }, async body => {
-                        // console.log("continuedRequest")
-                    })
-                }
+                })
             }
-     })
-  }
+        } catch(err){
+            chrome.debugger.sendCommand(source, "Fetch.continueRequest", { requestId }, async body => {
+                // console.log("continuedRequest")
+            })
+        }
+    }
+})
 
-  const removeNR = (tabId, data) => {
+  const removeNRAndInject = (tabId, data) => {
     return new Promise((resolve, reject) => {
         var parser = new DOMParser();
         var htmlDoc = parser.parseFromString(data, 'text/html'); 
@@ -229,8 +243,74 @@ chrome.webRequest.onHeadersReceived.addListener(
             console.debug(`Tab ${tabId} HTML document has existing NR Script. removing script -->`, script)
             script.remove();
         })
-        const newHTML = htmlDoc.documentElement.outerHTML
-        resolve(newHTML)
+
+        const messages = []
+        const config = {loader_config: {trustKey: "1"}, info: {beacon:"staging-bam-cell.nr-data.net",errorBeacon:"staging-bam-cell.nr-data.net",sa:1}}
+        Promise.all([
+            getLocalConfig(config, 'accountID'),
+            getLocalConfig(config, 'agentID'),
+            getLocalConfig(config, 'licenseKey', true),
+            getLocalConfig(config, 'applicationID', true),
+            getLocalConfig(config, 'nrLoaderType', false, true, 'SPA'),
+            getLocalConfig(config, 'customLoaderUrl', false, false),
+            getLocalConfig(config, 'customAgentUrl', false, false),
+            getLocalConfig(config, 'beacon', true, true, 'staging-bam-cell.nr-data.net'),
+            getLocalConfig(config, 'errorBeacon', true, true, 'staging-bam-cell.nr-data.net'),
+            getLocalConfig(config, 'version', false, false, 'current'),
+            getLocalConfig(config, 'copyPaste', false, false)
+        ]).then(([accountId, agentId, licenseKey, applicationID, nrLoaderType, customLoaderUrl, customAgentUrl, beacon, errorBeacon, version, copyPaste]) => {
+            if (nrLoaderType.toLowerCase() === 'copy-paste' && copyPaste){
+                messages.push({message: `Injecting copy/paste snippet`, data: null})
+                prepend(htmlDoc, copyPaste, null, true)
+            } else {
+                let loaderUrl, agentUrl;
+                if (nrLoaderType.toLowerCase() === 'custom' && !!customLoaderUrl) {
+                    loaderUrl = customLoaderUrl
+                    agentUrl = customAgentUrl
+                } 
+                else {
+                    const types = {'lite': 'rum', 'pro': 'full', 'spa': 'spa'}
+                    loaderUrl = `https://js-agent.newrelic.com/nr-loader-${types[nrLoaderType.toLowerCase()]}-${version}.min.js`
+                }
+                const aggUrl = agentUrl ? new URL(agentUrl) : new URL(loaderUrl)
+                config.info.agent = aggUrl.host + aggUrl.pathname.replace('loader-', '')
+                
+                messages.push({message: `appending NREUM data`, data: config})
+                const configString = `window.NREUM=window.NREUM||{};NREUM.loader_config=${JSON.stringify(config.loader_config)};NREUM.info=${JSON.stringify(config.info)}`
+                prepend(htmlDoc, configString, null)
+
+                messages.push({message:`injecting\n${loaderUrl}`, data: null})
+                prepend(htmlDoc, null, loaderUrl)                
+            }
+            messages.push({message: `----------- INJECTION COMPLETE ----------`, data: null})
+            const newHTML = htmlDoc.documentElement.outerHTML
+            resolve({newHTML, messages})
+        }).catch(err => {
+            console.error(err)
+        })
     })
-    
-}   
+} 
+
+const getLocalConfig = (config, key, info = false, update = true, fallback = null) => {
+    return new Promise((resolve, reject) => {
+        data = getLocalStorage(`${storageKey}_${key}`)
+        const optionalKeys = ['customAgentUrl', 'customLoaderUrl', 'version', 'copyPaste']
+        if (!data && !!fallback) data = fallback
+        if (!data && !optionalKeys.includes(key) ) reject(`No data... Empty Param... ${key}`)
+        if (update) config.loader_config[key] = data;
+        if (info && update) config.info[key] = data;
+        resolve(data);
+    })
+}
+
+function prepend(document, content, src, contentIsScriptString = false) {
+    if (contentIsScriptString){
+        // content = content.replace(/<script>/g, '').replace(/<\/script>/g, '')
+        content = new DOMParser().parseFromString(content, "text/html").querySelector("script").innerHTML
+    }
+    const injection = document.createElement('script');
+    injection.id = "nrba-injection"
+    if (content) injection.innerHTML = content;
+    if (src) injection.src = src;
+    document.documentElement.prepend(injection)
+}
