@@ -32,8 +32,8 @@ config = {loader_config: {trustKey: "1"}, info: {beacon:"staging-bam-cell.nr-dat
 document.addEventListener("DOMContentLoaded", () => {
     chrome.runtime.sendMessage({type: messageTypes.localStorageKey}, storageKey => {
         chrome.runtime.sendMessage({type: messageTypes.getTracked}, trackedTabs => {
-            chrome.runtime.sendMessage({type: messageTypes.currentTab}, async currentTab => {
-                if (currentTab && currentTab.url === window.location.href){
+            chrome.runtime.sendMessage({type: messageTypes.currentTab}, async (currentTab={}) => {
+                if (currentTab.url === window.location.href){
                     chrome.runtime.onMessage.addListener(({type, data, message, color}, sender, sendResponse) => {
                         if (type === 'console') {
                             logger.data(message, data)
