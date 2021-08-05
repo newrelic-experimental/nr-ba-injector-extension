@@ -4,6 +4,7 @@ const messageTypes = {
     currentTab: 'currentTab',
     localStorage: 'localStorage',
     localStorageKey: 'localStorageKey',
+    getTabInfo: 'getTabInfo',
     getTracked: 'getTracked',
     request: 'request',
     setLocalStorage: 'setLocalStorage',
@@ -15,32 +16,30 @@ const messageTypes = {
 const ioBool = io => !!Number(io)
 
 const logger = {
-    info: (msg, data = '') => {
-        console.debug(`%c${msg}\n`, `background: black; color: orange; font-style: italic;`, data)
+    info: (msg, data) => {
+        console.debug(`%c${msg}\n`, `background: black; color: orange; font-style: italic;`, data || '')
     },
-    data: (msg, data = '') => {
-        console.debug(`%c${msg}\n`, `background: black; color: cyan; font-weight: bold;`, data)
+    data: (msg, data) => {
+        console.debug(`%c${msg}\n`, `background: black; color: cyan; font-weight: bold;`, data || '')
     },
-    warn: (msg, data = '') => {
-        console.debug(`%c${msg}\n`, `background: black; color: maroon; font-weight: bold;`, data)
+    warn: (msg, data) => {
+        console.debug(`%c${msg}\n`, `background: black; color: maroon; font-weight: bold;`, data || '')
     }
 }
 
 config = {loader_config: {trustKey: "1"}, info: {beacon:"staging-bam-cell.nr-data.net",errorBeacon:"staging-bam-cell.nr-data.net",sa:1}}
 
+chrome.runtime.onMessage.addListener(({type, data, message, method = "data"}, sender, sendResponse) => {
+    if (type === 'console' && window === window.top) {
+        logger[method](message, data)
+    } 
+})
 
 document.addEventListener("DOMContentLoaded", () => {
     chrome.runtime.sendMessage({type: messageTypes.localStorageKey}, storageKey => {
         chrome.runtime.sendMessage({type: messageTypes.getTracked}, trackedTabs => {
-            chrome.runtime.sendMessage({type: messageTypes.currentTab}, async (currentTab={}) => {
-                if (currentTab.url === window.location.href){
-                    chrome.runtime.onMessage.addListener(({type, data, message, color}, sender, sendResponse) => {
-                        if (type === 'console') {
-                            logger.data(message, data)
-                        }
-                    }) 
-                }
-                if (!!trackedTabs.find(t => t.id === currentTab.id)){ 
+            chrome.runtime.sendMessage({type: messageTypes.getTabInfo}, async (tabInfo = {tab: {}}) => {
+                if (!!trackedTabs.find(t => t.id === tabInfo.tab.id)){ 
                     Promise.all([
                         getLocalConfig('accountID', storageKey),
                         getLocalConfig('agentID', storageKey),
@@ -105,7 +104,6 @@ const getLocalConfig = (key, storageKey, info = false, update = true, fallback =
 
 function prepend(content, src, contentIsScriptString = false) {
     if (contentIsScriptString){
-        // content = content.replace(/<script>/g, '').replace(/<\/script>/g, '')
         content = new DOMParser().parseFromString(content, "text/html").querySelector("script").innerHTML
     }
     const injection = document.createElement('script');
