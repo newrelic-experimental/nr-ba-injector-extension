@@ -231,8 +231,6 @@ chrome.webRequest.onHeadersReceived.addListener(
     return new Promise((resolve, reject) => {
         var parser = new DOMParser();
         var htmlDoc = parser.parseFromString(data, 'text/html'); 
-        console.log("all scripts", [htmlDoc.documentElement, htmlDoc.head, htmlDoc.body]
-            .reduce((curr, next) => [...curr, ...next.querySelectorAll("script")], []))
         const nrbaScripts = [htmlDoc.documentElement, htmlDoc.head, htmlDoc.body]
         .reduce((curr, next) => [...curr, ...next.querySelectorAll("script")], [])
         .filter(script => script.id !== 'nrba-injection' && 
@@ -241,8 +239,6 @@ chrome.webRequest.onHeadersReceived.addListener(
                 (script.innerHTML && script.innerHTML.includes("NREUM"))
             )
         );
-
-        console.log("nrba", nrbaScripts)
 
         nrbaScripts.forEach(script => {
             console.debug(`Tab ${tabId} HTML document has existing NR Script. removing script -->`, script)
