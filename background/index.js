@@ -235,10 +235,11 @@ chrome.webRequest.onHeadersReceived.addListener(
         .reduce((curr, next) => [...curr, ...next.querySelectorAll("script")], [])
         .filter(script => script.id !== 'nrba-injection' && 
             (
-                (script.src && (script.src.includes("js-agent.newrelic") || script.src.includes("js-agent.nr-assets")) ) || 
+                (script.src && (script.src.includes("js-agent.newrelic") || script.src.includes("browser-agent") || script.src.includes("js-agent.nr-assets")) ) || 
                 (script.innerHTML && script.innerHTML.includes("NREUM"))
             )
         );
+
         nrbaScripts.forEach(script => {
             console.debug(`Tab ${tabId} HTML document has existing NR Script. removing script -->`, script)
             script.remove();
