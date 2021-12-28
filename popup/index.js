@@ -147,7 +147,6 @@ window.addEventListener('load', async () => {
     setInputValue("#errorBeacon", await getLocalStorage('errorBeacon'))
     setInputValue("#version", await getLocalStorage('version'))
     setInputValue("#customLoaderUrl", await getLocalStorage('customLoaderUrl') || null)
-    setInputValue("#customAgentUrl", await getLocalStorage('customAgentUrl') || null)
     setInputValue("#copyPaste", await getLocalStorage('copyPaste') || null)
 
     const nrLoaderType = await getLocalStorage('nrLoaderType') || 'SPA'

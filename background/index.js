@@ -254,27 +254,23 @@ chrome.webRequest.onHeadersReceived.addListener(
             getLocalConfig(config, 'applicationID', true),
             getLocalConfig(config, 'nrLoaderType', false, true, 'SPA'),
             getLocalConfig(config, 'customLoaderUrl', false, false),
-            getLocalConfig(config, 'customAgentUrl', false, false),
             getLocalConfig(config, 'beacon', true, true, 'staging-bam-cell.nr-data.net'),
             getLocalConfig(config, 'errorBeacon', true, true, 'staging-bam-cell.nr-data.net'),
             getLocalConfig(config, 'version', false, false, 'current'),
             getLocalConfig(config, 'copyPaste', false, false)
-        ]).then(([accountId, agentId, licenseKey, applicationID, nrLoaderType, customLoaderUrl, customAgentUrl, beacon, errorBeacon, version, copyPaste]) => {
+        ]).then(({4: nrLoaderType, 5: customLoaderUrl, 8: version, 9: copyPaste}) => {
             if (nrLoaderType.toLowerCase() === 'copy-paste' && copyPaste){
                 messages.push({message: `Injecting copy/paste snippet`, data: null})
                 prepend(htmlDoc, copyPaste, null, true)
             } else {
-                let loaderUrl, agentUrl;
+                let loaderUrl;
                 if (nrLoaderType.toLowerCase() === 'custom' && !!customLoaderUrl) {
                     loaderUrl = customLoaderUrl
-                    agentUrl = customAgentUrl
                 } 
                 else {
                     const types = {'lite': 'rum', 'pro': 'full', 'spa': 'spa'}
                     loaderUrl = `https://js-agent.newrelic.com/nr-loader-${types[nrLoaderType.toLowerCase()]}-${version}.min.js`
                 }
-                const aggUrl = agentUrl ? new URL(agentUrl) : new URL(loaderUrl)
-                config.info.agent = aggUrl.host + aggUrl.pathname.replace('loader-', '')
                 
                 messages.push({message: `appending NREUM data`, data: config})
                 const configString = `window.NREUM=window.NREUM||{};NREUM.loader_config=${JSON.stringify(config.loader_config)};NREUM.info=${JSON.stringify(config.info)}`
@@ -295,7 +291,7 @@ chrome.webRequest.onHeadersReceived.addListener(
 const getLocalConfig = (config, key, info = false, update = true, fallback = null) => {
     return new Promise((resolve, reject) => {
         data = getLocalStorage(`${storageKey}_${key}`)
-        const optionalKeys = ['customAgentUrl', 'customLoaderUrl', 'version', 'copyPaste']
+        const optionalKeys = ['customLoaderUrl', 'version', 'copyPaste']
         if (!data && !!fallback) data = fallback
         if (!data && !optionalKeys.includes(key) ) reject(`No data... Empty Param... ${key}`)
         if (update) config.loader_config[key] = data;

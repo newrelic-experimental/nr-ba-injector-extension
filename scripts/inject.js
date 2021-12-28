@@ -47,27 +47,23 @@ document.addEventListener("DOMContentLoaded", () => {
                         getLocalConfig('applicationID', storageKey, true),
                         getLocalConfig('nrLoaderType', storageKey, false, true, 'SPA'),
                         getLocalConfig('customLoaderUrl', storageKey, false, false),
-                        getLocalConfig('customAgentUrl', storageKey, false, false),
                         getLocalConfig('beacon', storageKey, true, true, 'staging-bam-cell.nr-data.net'),
                         getLocalConfig('errorBeacon', storageKey, true, true, 'staging-bam-cell.nr-data.net'),
                         getLocalConfig('version', storageKey, false, false, 'current'),
                         getLocalConfig('copyPaste', storageKey, false, false)
-                    ]).then(([accountId, agentId, licenseKey, applicationID, nrLoaderType, customLoaderUrl, customAgentUrl, beacon, errorBeacon, version, copyPaste]) => {
+                    ]).then(({4: nrLoaderType, 5: customLoaderUrl, 8: version, 9: copyPaste}) => {
                         if (nrLoaderType.toLowerCase() === 'copy-paste' && copyPaste){
                             logger.info(`Injecting copy/paste snippet into \n${window.location.href}`)
                             prepend(copyPaste, null, true)
                         } else {
-                            let loaderUrl, agentUrl;
+                            let loaderUrl;
                             if (nrLoaderType.toLowerCase() === 'custom' && !!customLoaderUrl) {
                                 loaderUrl = customLoaderUrl
-                                agentUrl = customAgentUrl
                             } 
                             else {
                                 const types = {'lite': 'rum', 'pro': 'full', 'spa': 'spa'}
                                 loaderUrl = `https://js-agent.newrelic.com/nr-loader-${types[nrLoaderType.toLowerCase()]}-${version}.min.js`
                             }
-                            const aggUrl = agentUrl ? new URL(agentUrl) : new URL(loaderUrl)
-                            config.info.agent = aggUrl.host + aggUrl.pathname.replace('loader-', '')
                             
                             logger.info(`appending NREUM data into\n${window.location.href}`, config)
                             const configString = `window.NREUM=window.NREUM||{};NREUM.loader_config=${JSON.stringify(config.loader_config)};NREUM.info=${JSON.stringify(config.info)}`
@@ -92,7 +88,7 @@ document.addEventListener("DOMContentLoaded", () => {
 const getLocalConfig = (key, storageKey, info = false, update = true, fallback = null) => {
     return new Promise((resolve, reject) => {
         chrome.runtime.sendMessage({type: 'localStorage', data: {key: `${storageKey}_${key}`}}, data => { 
-            const optionalKeys = ['customAgentUrl', 'customLoaderUrl', 'version', 'copyPaste']
+            const optionalKeys = ['customLoaderUrl', 'version', 'copyPaste']
             if (!data && !!fallback) data = fallback
             if (!data && !optionalKeys.includes(key) ) reject(`No data... Empty Param... ${key}`)
             if (update) config.loader_config[key] = data;
