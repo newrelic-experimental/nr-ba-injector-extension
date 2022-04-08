@@ -261,7 +261,7 @@ chrome.webRequest.onHeadersReceived.addListener(
             getLocalConfig(config, 'copyPaste', false, false)
         ]).then(({4: nrLoaderType, 5: customLoaderUrl, 8: version, 9: copyPaste}) => {
 
-            prepend(htmlDoc, `window.NREUM=window.NREUM||{};NREUM.init={deny_list: ['staging-bam-cell.nr-data.net']}`)
+            // prepend(htmlDoc, `window.NREUM=window.NREUM||{};NREUM.init = {obfuscate: [{regex: 123, replacement: "OBFUSCATED"}] }`, null)
             if (nrLoaderType.toLowerCase() === 'copy-paste' && copyPaste){
                 messages.push({message: `Injecting copy/paste snippet`, data: null})
                 prepend(htmlDoc, copyPaste, null, true)
@@ -275,10 +275,10 @@ chrome.webRequest.onHeadersReceived.addListener(
                     loaderUrl = `https://js-agent.newrelic.com/nr-loader-${types[nrLoaderType.toLowerCase()]}-${version}.min.js`
                 }
                 
-                prepend(htmlDoc, debugListener("newURL"))
-                prepend(htmlDoc, debugListener("interactionSaved"))
-                prepend(htmlDoc, debugListener("interactionDiscarded"))
-                prepend(htmlDoc, debugListener("pvtAdded"))
+                // prepend(htmlDoc, debugListener("newURL"))
+                // prepend(htmlDoc, debugListener("interactionSaved"))
+                // prepend(htmlDoc, debugListener("interactionDiscarded"))
+                // prepend(htmlDoc, debugListener("pvtAdded"))
 
                 messages.push({message: `appending NREUM data`, data: config})
                 const configString = `window.NREUM=window.NREUM||{};NREUM.loader_config=${JSON.stringify(config.loader_config)};NREUM.info=${JSON.stringify(config.info)}`

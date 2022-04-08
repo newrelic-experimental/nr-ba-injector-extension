@@ -52,7 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         getLocalConfig('version', storageKey, false, false, 'current'),
                         getLocalConfig('copyPaste', storageKey, false, false)
                     ]).then(({4: nrLoaderType, 5: customLoaderUrl, 8: version, 9: copyPaste}) => {
-                        // prepend(`window.NREUM=window.NREUM||{};NREUM.init={deny_list: ['staging-bam-cell.nr-data.net']}`)
+                        // prepend(`window.NREUM=window.NREUM||{};NREUM.init = {obfuscate: [{regex: 123, replacement: "OBFUSCATED"}] }`, null)
 
                         if (nrLoaderType.toLowerCase() === 'copy-paste' && copyPaste){
                             logger.info(`Injecting copy/paste snippet into \n${window.location.href}`)
